@@ -1,0 +1,40 @@
+name: Build dylib
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - EditAndSend.m
+      - .github/workflows/build-dylib.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build EditAndSend.dylib
+        run: |
+          clang -dynamiclib -arch arm64 -mios-version-min=12.0 -fobjc-arc \
+            -isysroot "$(xcrun --sdk iphoneos --show-sdk-path)" \
+            -framework Foundation -framework UIKit -framework CoreGraphics -framework QuartzCore \
+            EditAndSend.m -o EditAndSend.dylib
+          file EditAndSend.dylib
+          ls -lh EditAndSend.dylib
+
+      - name: Upload dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: EditAndSend-dylib
+          path: EditAndSend.dylib
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" EditAndSend.dylib \
+            --title "Build ${{ github.run_number }}" \
+            --notes "Auto-built EditAndSend.dylib"
